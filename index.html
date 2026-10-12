@@ -1,0 +1,439 @@
+
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Bike Traffic Rush 3D</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#07111d;color:white;font-family:Arial;overflow:hidden}
+canvas{display:block}
+#hud{position:fixed;top:10px;left:10px;right:10px;display:flex;justify-content:space-between;z-index:2;pointer-events:none}
+.badge{background:#061b2ddd;border:1px solid #22dfff;border-radius:10px;padding:10px;font-weight:bold}
+#speed{font-size:27px;color:#48ffb0}
+#controls{position:fixed;bottom:15px;left:10px;right:10px;display:flex;justify-content:space-between;z-index:2}
+button{border:1px solid #35dcff;border-radius:12px;padding:12px;background:#102b43;color:white;font-weight:bold}
+.drive{width:62px;height:62px;border-radius:50%;font-size:25px}
+#gas{background:#00895c;width:76px;height:76px;border-radius:50%;font-size:25px}
+#nitro{background:#572e9a}
+#menu{position:fixed;inset:0;background:#06111bf2;z-index:5;overflow:auto;padding:15px}
+.card{max-width:600px;margin:auto;background:#102438;border:1px solid #22dfff;border-radius:18px;padding:16px}
+h2{color:#43e9ff;text-align:center}
+#bikes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.bike{padding:8px 3px;min-height:70px}
+.bike.active{outline:3px solid #39ffab;background:#15553e}
+#colors{display:grid;grid-template-columns:repeat(8,1fr);gap:7px;margin:12px 0}
+.swatch{height:31px;padding:0;border:2px solid #ffffff66;border-radius:7px}
+.swatch.active{outline:3px solid white}
+#start{width:100%;background:#009c69;font-size:19px;margin-top:12px}
+.small{font-size:12px;color:#c4e7f4;text-align:center;line-height:1.5}
+</style>
+</head>
+<body>
+
+<div id="hud">
+ <div class="badge">LEVEL <span id="level">1</span><br>SCORE <span id="score">0</span></div>
+ <div class="badge" style="text-align:center"><span id="speed">0</span><br>KM/H</div>
+</div>
+
+<div id="controls">
+ <div>
+  <button class="drive" id="left">◀</button>
+  <button class="drive" id="right">▶</button>
+ </div>
+ <div>
+  <button id="nitro">⚡</button>
+  <button class="drive" id="brake">▼</button>
+  <button id="gas">▲</button>
+ </div>
+</div>
+
+<div id="menu">
+ <div class="card">
+  <h2>🏍 BIKE TRAFFIC RUSH 3D</h2>
+  <p class="small">আপনার পছন্দের বাইক ও রং নির্বাচন করুন</p>
+  <h3>২০টি বাইক নির্বাচন</h3>
+  <div id="bikes"></div>
+  <h3>৪৮টি কালার নির্বাচন</h3>
+  <div id="colors"></div>
+  <p class="small">রং চাপলে 3D বাইকের রং সঙ্গে সঙ্গে পরিবর্তন হবে।</p>
+  <button id="tilt">📱 ENABLE TILT STEERING</button>
+  <button id="start">▶ START GAME</button>
+ </div>
+</div>
+
+<script type="module">
+import * as THREE from
+'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+
+const $=id=>document.getElementById(id);
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x83c8ef);
+scene.fog=new THREE.Fog(0x83c8ef,65,220);
+
+const camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.1,500);
+camera.position.set(0,4.5,9);
+
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth,innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1;
+document.body.prepend(renderer.domElement);
+
+scene.add(new THREE.HemisphereLight(0xe5f6ff,0x42513c,2));
+const sun=new THREE.DirectionalLight(0xffffff,2.5);
+sun.position.set(-12,25,12);
+sun.castShadow=true;
+scene.add(sun);
+
+const material=(c,metal=0,rough=.55)=>
+ new THREE.MeshStandardMaterial({color:c,metalness:metal,roughness:rough});
+
+const black=material(0x11151b,.2);
+const chrome=material(0xb8c6d2,.85,.24);
+const rubber=material(0x101216,0,.8);
+const ground= new THREE.Mesh(
+ new THREE.PlaneGeometry(100,500),material(0x478449));
+ground.rotation.x=-Math.PI/2;
+ground.position.set(0,-.12,-180);
+scene.add(ground);
+
+function box(parent,x,y,z,w,h,d,mat){
+ const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);
+ m.position.set(x,y,z);
+ m.castShadow=true;m.receiveShadow=true;
+ parent.add(m);return m;
+}
+function cyl(parent,x,y,z,r,h,mat,rot=0){
+ const m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,h,16),mat);
+ m.position.set(x,y,z);m.rotation.z=rot;
+ m.castShadow=true;parent.add(m);return m;
+}
+
+box(scene,0,-.03,-180,12,.15,500,material(0x30363e));
+for(const x of [-5.7,5.7]){
+ box(scene,x,.07,-180,.12,.03,500,material(0xffdf48));
+}
+const markings=[];
+for(let z=-420;z<20;z+=10){
+ for(const x of [-2,2]){
+  markings.push(box(scene,x,.07,z,.10,.025,3,material(0xffffff)));
+ }
+}
+
+// ২০টি আলাদা procedural বাইকের ভ্যারিয়েশন
+const names=[
+'Ninja ZX','Super Sport','Racing R1','Street Fighter',
+'Hyper RR','Moto GP','Thunder 1000','Falcon X',
+'Shadow R','Neon Racer','Speed Hawk','Turbo V4',
+'Dragon S','Storm 900','Phantom','Road King',
+'Cyber Bike','Aero RS','Lightning','Ultimate X'
+];
+let bikeIndex=0;
+let bikeColor='#00ff68';
+let bike=null;
+let gas=false,braking=false,nitro=false,running=false;
+let speed=0,score=0,level=1,lane=0,tilt=0,distance=0;
+let last=performance.now();
+const traffic=[];
+
+function buildBike(index,color){
+ const root=new THREE.Group();
+ root.userData.paint=[];
+ const paint=material(color,.45,.28);
+ const frame=material(0x293847,.65,.32);
+ const wheelMat=rubber;
+ const zFront=.86+(index%4)*.045;
+ const wheelRadius=.32+(index%3)*.025;
+
+ // Wheels, hubs and rims
+ for(const z of [-.9,zFront]){
+  const wheel=new THREE.Mesh(
+   new THREE.TorusGeometry(wheelRadius,.09,10,24),wheelMat);
+  wheel.position.set(0,.38,z);
+  wheel.rotation.y=Math.PI/2;
+  root.add(wheel);
+  cyl(root,0,.38,z,.13,.14,chrome,Math.PI/2);
+  for(let s=0;s<6;s++){
+   const spoke=box(root,0,.38,z,.025,.22,.025,chrome);
+   spoke.rotation.z=s*Math.PI/3;
+  }
+ }
+ // Frame and engine
+ box(root,0,.58,0,.18,.18,1.05,frame);
+ box(root,0,.48,0,.4,.30,.38,material(0x626d76,.75,.3));
+
+ // Paintable fuel tank: model varies by bike index
+ const tank=new THREE.Mesh(
+  new THREE.SphereGeometry(.36+(index%3)*.025,16,12),paint);
+ tank.scale.set(.83,.68,1.15);
+ tank.position.set(0,.91,-.12);
+ root.add(tank);root.userData.paint.push(tank);
+
+ // Sport fairing / street body
+ const fairing=new THREE.Mesh(
+  new THREE.SphereGeometry(.33,14,10),paint);
+ fairing.scale.set(1.0,.9,1.15);
+ fairing.position.set(0,.73,.54);
+ root.add(fairing);root.userData.paint.push(fairing);
+
+ // Rear body
+ const rear=box(root,0,.72,-.62,.34,.16,.55,paint);
+ root.userData.paint.push(rear);
+
+ // Sport windshield
+ const glass=box(root,0,1.12,.61,.24,.26,.035,
+  material(0x60ccef,.15,.2));
+ glass.rotation.x=-.25;
+
+ // Front fork
+ for(const x of [-.14,.14]){
+  const fork=cyl(root,x,.66,.77,.035,.7,chrome);
+  fork.rotation.x=.15;
+ }
+ box(root,0,1.02,.79,.55,.045,.07,black);
+
+ // Exhaust and tail light
+ cyl(root,.20,.48,-.63,.075,.63,chrome,Math.PI/2);
+ box(root,0,.77,-.91,.13,.08,.035,material(0xff2222));
+
+ // Rider torso and helmet
+ const rider=new THREE.Mesh(
+  new THREE.SphereGeometry(.24,12,10),material(0x192535));
+ rider.position.set(0,1.18,-.15);
+ rider.scale.set(.9,1.2,.8);root.add(rider);
+ const helmet=new THREE.Mesh(
+  new THREE.SphereGeometry(.17,14,12),material(0xf4f5fa,.2,.2));
+ helmet.position.set(0,1.49,-.17);root.add(helmet);
+
+ root.position.set(0,0,2.4);
+ root.rotation.y=Math.PI;
+ scene.add(root);
+ return root;
+}
+function replaceBike(){
+ if(bike)scene.remove(bike);
+ bike=buildBike(bikeIndex,bikeColor);
+}
+function updateColor(){
+ if(!bike)return;
+ bike.userData.paint.forEach(o=>o.material.color.set(bikeColor));
+}
+
+const bikes=$('bikes');
+names.forEach((name,i)=>{
+ const b=document.createElement('button');
+ b.className='bike'+(i===0?' active':'');
+ b.innerHTML='🏍️<br><small>'+(i+1)+'. '+name+'</small>';
+ b.onclick=()=>{
+  bikeIndex=i;
+  bikes.querySelectorAll('button').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');
+  replaceBike();
+ };
+ bikes.appendChild(b);
+});
+
+const palette=[
+'#00ff68','#ff2020','#087dff','#ff8a00',
+'#ffffff','#111827','#bb40ff','#ffd600',
+'#00e5ff','#ff44a8','#4cff00','#a52a2a',
+'#ff5500','#008f72','#e5c7a1','#4b4b4b',
+'#f1f1f1','#301934','#fa8072','#40e0d0',
+'#7fff00','#dc143c','#4169e1','#daa520',
+'#adff2f','#ff1493','#00ced1','#8b4513',
+'#708090','#f5f5dc','#9400d3','#00bfff',
+'#ff6347','#9acd32','#c0c0c0','#ff00ff',
+'#6a5acd','#cd853f','#2e8b57','#f0e68c',
+'#4682b4','#e9967a','#7cfc00','#ba55d3',
+'#20b2aa','#ffdead','#a9a9a9','#b22222'
+];
+const colors=$('colors');
+palette.forEach((c,i)=>{
+ const b=document.createElement('button');
+ b.className='swatch'+(i===0?' active':'');
+ b.style.background=c;
+ b.title=c;
+ b.onclick=()=>{
+  bikeColor=c;
+  colors.querySelectorAll('button').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');
+  updateColor();
+ };
+ colors.appendChild(b);
+});
+
+// Trees and city buildings
+const scenery=[];
+function tree(x,z){
+ const g=new THREE.Group();
+ cyl(g,0,.65,0,.12,1.3,material(0x77502e));
+ for(let j=0;j<3;j++){
+  const crown=new THREE.Mesh(
+   new THREE.ConeGeometry(.9-j*.15,1.5,8),
+   material([0x16773c,0x248b45,0x329d4c][j]));
+  crown.position.y=1.3+j*.5;g.add(crown);
+ }
+ g.position.set(x,0,z);scene.add(g);scenery.push(g);
+}
+function building(x,z){
+ const g=new THREE.Group();
+ const h=8+Math.random()*17,w=3+Math.random()*3;
+ box(g,0,h/2,0,w,h,4,
+  material([0x7c94a8,0xa6bdc9,0x626f85][Math.floor(Math.random()*3)]));
+ for(let y=1;y<h-1;y+=2){
+  for(let xx=-w/2+.5;xx<w/2;xx+=1){
+   box(g,xx,y,2.03,.42,.65,.035,material(0x7ed5ed,.2,.25));
+  }
+ }
+ g.position.set(x,0,z);scene.add(g);scenery.push(g);
+}
+for(let z=-390;z<15;z+=15){
+ tree(-9,z);tree(9,z-6);
+ if(z%45===0){building(-14,z);building(14,z-20);}
+}
+
+// Traffic vehicles
+function vehicle(type,color){
+ const g=new THREE.Group(),p=material(color,.35,.35);
+ if(type==='bus'){
+  box(g,0,1.05,0,2,2,4.5,p);
+  box(g,0,1.55,2.27,1.7,.55,.04,material(0x70cbed,.2,.2));
+ }else if(type==='truck'||type==='trailer'){
+  box(g,0,.72,.7,1.8,1.4,1.8,p);
+  box(g,0,1.2,-1.2,2,1.9,4.2,
+   type==='trailer'?material(0xd8dce2):p);
+ }else{
+  box(g,0,.55,0,1.65,.7,2.5,p);
+  box(g,0,.98,.1,1.2,.45,1.0,material(0x80d8ef,.2,.2));
+ }
+ for(const z of [-1.3,1.3]){
+  for(const x of [-.9,.9]){
+   const w=new THREE.Mesh(
+    new THREE.CylinderGeometry(.25,.25,.15,12),rubber);
+   w.rotation.z=Math.PI/2;w.position.set(x,.27,z);g.add(w);
+  }
+ }
+ return g;
+}
+function spawn(){
+ const types=['car','car','bus','truck','trailer'];
+ const type=types[Math.floor(Math.random()*types.length)];
+ const colors=['#e82f44','#1c80ec','#e6bb2e','#eeeeee','#35a96d'];
+ const obj=vehicle(type,colors[Math.floor(Math.random()*colors.length)]);
+ obj.position.set([-4,-2,0,2,4][Math.floor(Math.random()*5)],0,-130);
+ obj.userData.speed=12+Math.random()*20;
+ scene.add(obj);traffic.push(obj);
+}
+
+function start(){
+ $('menu').style.display='none';
+ if(!bike)replaceBike();
+ speed=0;score=0;distance=0;level=1;lane=0;
+ traffic.forEach(o=>scene.remove(o));traffic.length=0;
+ running=true;
+}
+$('start').onclick=start;
+replaceBike();
+
+function hold(id,down,up){
+ const b=$(id);
+ b.addEventListener('pointerdown',e=>{e.preventDefault();down()});
+ ['pointerup','pointercancel','pointerleave'].forEach(evt=>
+  b.addEventListener(evt,up));
+}
+hold('gas',()=>gas=true,()=>gas=false);
+hold('brake',()=>braking=true,()=>braking=false);
+hold('nitro',()=>nitro=true,()=>nitro=false);
+$('left').onclick=()=>lane=Math.max(-2,lane-1);
+$('right').onclick=()=>lane=Math.min(2,lane+1);
+
+addEventListener('keydown',e=>{
+ if(e.key==='ArrowLeft')lane=Math.max(-2,lane-1);
+ if(e.key==='ArrowRight')lane=Math.min(2,lane+1);
+ if(e.key==='ArrowUp')gas=true;
+ if(e.key==='ArrowDown')braking=true;
+});
+addEventListener('keyup',e=>{
+ if(e.key==='ArrowUp')gas=false;
+ if(e.key==='ArrowDown')braking=false;
+});
+$('tilt').onclick=async()=>{
+ try{
+  if(typeof DeviceOrientationEvent!=='undefined'&&
+  DeviceOrientationEvent.requestPermission){
+   const r=await DeviceOrientationEvent.requestPermission();
+   if(r!=='granted')throw Error();
+  }
+  addEventListener('deviceorientation',e=>{
+   if(e.gamma!==null)tilt=Math.max(-2,Math.min(2,e.gamma/15));
+  });
+  $('tilt').textContent='✓ TILT ENABLED';
+ }catch(e){
+  $('tilt').textContent='Tilt unavailable: use arrows';
+ }
+};
+
+let spawnTime=0;
+function animate(now){
+ requestAnimationFrame(animate);
+ const dt=Math.min((now-last)/1000,.05);last=now;
+ if(running){
+  speed+=( (gas?290:0)-speed)*dt*(gas?.6:.3);
+  if(braking)speed=Math.max(0,speed-200*dt);
+  if(nitro&&gas)speed=Math.min(350,speed+100*dt);
+  const movement=speed/3.6*dt*.6;
+  distance+=speed/3.6*dt/1000;
+  score+=Math.floor(speed*dt/15);
+  level=Math.min(200,1+Math.floor(distance/1.5));
+
+  const targetX=lane*2+tilt;
+  bike.position.x+=(targetX-bike.position.x)*dt*5;
+  bike.rotation.z+=( -(targetX-bike.position.x)*.08-bike.rotation.z)*dt*5;
+
+  markings.forEach(m=>{
+   m.position.z+=movement;
+   if(m.position.z>15)m.position.z-=430;
+  });
+  scenery.forEach(o=>{
+   o.position.z+=movement;
+   if(o.position.z>20)o.position.z-=420;
+  });
+  spawnTime-=dt;
+  if(spawnTime<=0){spawn();spawnTime=1.4;}
+  for(let i=traffic.length-1;i>=0;i--){
+   const o=traffic[i];
+   o.position.z+=(movement+o.userData.speed*dt);
+   if(o.position.z>12){
+    scene.remove(o);traffic.splice(i,1);
+   }else if(Math.abs(o.position.z-bike.position.z)<1.8&&
+            Math.abs(o.position.x-bike.position.x)<1.3){
+    running=false;
+    $('menu').style.display='block';
+    $('start').textContent='↻ RESTART GAME';
+   }
+  }
+  $('speed').textContent=Math.round(speed);
+  $('score').textContent=score;
+  $('level').textContent=level;
+ }
+ if(bike){
+  camera.position.x+=(bike.position.x*.4-camera.position.x)*dt*3;
+  camera.lookAt(bike.position.x*.4,1,-9);
+ }
+ renderer.render(scene,camera);
+}
+requestAnimationFrame(animate);
+
+addEventListener('resize',()=>{
+ camera.aspect=innerWidth/innerHeight;
+ camera.updateProjectionMatrix();
+ renderer.setSize(innerWidth,innerHeight);
+});
+</script>
+</body>
+</html>
