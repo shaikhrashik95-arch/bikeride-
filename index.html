@@ -1,0 +1,222 @@
+
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#101528">
+<title>Nova One — My Technology</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#0b1020;color:#f4f6ff;
+font-family:Arial,sans-serif}
+header{padding:20px;background:#111a30;
+border-bottom:1px solid #293653}
+.brand{font-size:25px;font-weight:bold;color:#70e1ff}
+header p{color:#a9b5d1;font-size:13px}
+nav{display:flex;gap:8px;padding:12px;
+overflow-x:auto;background:#10172a}
+button{cursor:pointer;border:0;border-radius:10px;
+padding:12px;background:#263451;color:white}
+nav button.active,.primary{background:#4361ee}
+main{padding:16px;max-width:850px;margin:auto}
+h2{font-size:22px}
+.panel{background:#141d32;border:1px solid #293653;
+border-radius:16px;padding:16px;margin-bottom:16px}
+input,textarea{width:100%;padding:13px;margin:8px 0;
+border-radius:9px;border:1px solid #364564;
+background:#0d1426;color:white;font-size:16px}
+textarea{min-height:100px;resize:vertical}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row>*{flex:1}
+.result{white-space:pre-wrap;overflow-wrap:anywhere;
+color:#c9d5ef;line-height:1.6}
+.small{color:#a9b5d1;font-size:13px}
+.toolgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tool{padding:17px;background:#1c2943;border-radius:12px}
+.hidden{display:none}
+a{color:#70e1ff}
+footer{text-align:center;padding:24px;color:#8998b8}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">✦ NOVA ONE</div>
+  <p>Your Personal Technology Platform</p>
+</header>
+
+<nav>
+  <button class="active" data-tab="home">Home</button>
+  <button data-tab="search">Search</button>
+  <button data-tab="ai">AI Assistant</button>
+  <button data-tab="tools">Tools</button>
+  <button data-tab="notes">My Notes</button>
+</nav>
+
+<main>
+<section id="home">
+  <div class="panel">
+    <h2>আপনার নিজস্ব প্রযুক্তি প্ল্যাটফর্ম</h2>
+    <p class="small">এক জায়গায় সার্চ, AI, নোট ও প্রয়োজনীয় টুলস।</p>
+    <div class="row">
+      <button class="primary" onclick="showTab('search')">
+        🔎 Search Web
+      </button>
+      <button onclick="showTab('ai')">✦ AI Assistant</button>
+    </div>
+  </div>
+  <div class="toolgrid">
+    <div class="tool">🔎<br><b>Smart Search</b><p class="small">ওয়েবে তথ্য খুঁজুন</p></div>
+    <div class="tool">✦<br><b>AI Assistant</b><p class="small">AI সংযোগের প্রস্তুতি</p></div>
+    <div class="tool">🧮<br><b>Calculator</b><p class="small">হিসাব করুন</p></div>
+    <div class="tool">📝<br><b>My Notes</b><p class="small">নিজের নোট রাখুন</p></div>
+  </div>
+</section>
+
+<section id="search" class="hidden">
+  <div class="panel">
+    <h2>🔎 Smart Search</h2>
+    <form id="searchForm">
+      <input id="query" placeholder="আপনি কী খুঁজছেন?"
+       required>
+      <button class="primary" type="submit">Search Web</button>
+    </form>
+    <p class="small">অনুসন্ধানের জন্য DuckDuckGo খুলবে।</p>
+  </div>
+</section>
+
+<section id="ai" class="hidden">
+  <div class="panel">
+    <h2>✦ AI Assistant</h2>
+    <p class="small">AI পরিষেবা সংযুক্ত না হওয়া পর্যন্ত এখানে
+    প্রকৃত AI উত্তর পাওয়া যাবে না।</p>
+    <div id="chat" class="result"></div>
+    <form id="chatForm">
+      <textarea id="message" placeholder="আপনার প্রশ্ন লিখুন..."
+       required></textarea>
+      <button class="primary" type="submit">Send Message</button>
+    </form>
+    <p id="aiStatus" class="small"></p>
+  </div>
+</section>
+
+<section id="tools" class="hidden">
+  <div class="panel">
+    <h2>🧮 Calculator</h2>
+    <input id="calcInput" placeholder="যেমন: (25+15)*2">
+    <button class="primary" onclick="calculate()">Calculate</button>
+    <p id="calcResult" class="result"></p>
+    <p class="small">শুধু সংখ্যা ও সাধারণ গাণিতিক চিহ্ন ব্যবহার করুন।</p>
+  </div>
+</section>
+
+<section id="notes" class="hidden">
+  <div class="panel">
+    <h2>📝 My Notes</h2>
+    <input id="noteTitle" placeholder="নোটের শিরোনাম">
+    <textarea id="noteBody" placeholder="আপনার নোট লিখুন..."></textarea>
+    <button class="primary" onclick="saveNote()">Save Note</button>
+    <div id="noteList"></div>
+    <p class="small">নোট এই ব্রাউজারের localStorage-এ সংরক্ষিত হবে।</p>
+  </div>
+</section>
+</main>
+
+<footer>Nova One · Version 1.0 · Built for your ideas</footer>
+
+<script>
+const tabs = ["home","search","ai","tools","notes"];
+
+function showTab(name){
+  tabs.forEach(id=>{
+    document.getElementById(id).classList.toggle("hidden",id!==name);
+  });
+  document.querySelectorAll("nav button").forEach(btn=>{
+    btn.classList.toggle("active",btn.dataset.tab===name);
+  });
+}
+
+document.querySelectorAll("nav button").forEach(btn=>{
+  btn.addEventListener("click",()=>showTab(btn.dataset.tab));
+});
+
+document.getElementById("searchForm").addEventListener("submit",e=>{
+  e.preventDefault();
+  const q=document.getElementById("query").value.trim();
+  if(q) window.open(
+    "https://duckduckgo.com/?q="+encodeURIComponent(q),"_blank");
+});
+
+document.getElementById("chatForm").addEventListener("submit",e=>{
+  e.preventDefault();
+  const msg=document.getElementById("message").value.trim();
+  if(!msg)return;
+  const chat=document.getElementById("chat");
+  chat.textContent+="\nআপনি: "+msg+
+    "\nসিস্টেম: AI API এখনও সংযুক্ত করা হয়নি। প্রকৃত উত্তর পেতে নিরাপদ backend যোগ করতে হবে।\n";
+  document.getElementById("aiStatus").textContent=
+    "পরবর্তী ধাপ: AI backend সংযোগ";
+  document.getElementById("message").value="";
+});
+
+function calculate(){
+  const s=document.getElementById("calcInput").value.trim();
+  const out=document.getElementById("calcResult");
+  if(!s || !/^[0-9+\-*/().%\s]+$/.test(s)){
+    out.textContent="সঠিক গাণিতিক expression লিখুন।";return;
+  }
+  try{
+    const value=Function('"use strict";return ('+s+')')();
+    out.textContent=Number.isFinite(value)?String(value):
+      "ফলাফল নির্ণয় করা যায়নি।";
+  }catch{
+    out.textContent="Expression সঠিক নয়।";
+  }
+}
+
+function getNotes(){
+  try{return JSON.parse(localStorage.getItem("novaNotes")||"[]")}
+  catch{return []}
+}
+
+function saveNote(){
+  const title=document.getElementById("noteTitle").value.trim();
+  const body=document.getElementById("noteBody").value.trim();
+  if(!title&&!body){alert("আগে একটি নোট লিখুন।");return;}
+  const notes=getNotes();
+  notes.unshift({id:Date.now(),title,body});
+  localStorage.setItem("novaNotes",JSON.stringify(notes));
+  document.getElementById("noteTitle").value="";
+  document.getElementById("noteBody").value="";
+  renderNotes();
+}
+
+function deleteNote(id){
+  localStorage.setItem("novaNotes",JSON.stringify(
+    getNotes().filter(n=>n.id!==id)));
+  renderNotes();
+}
+
+function renderNotes(){
+  const list=document.getElementById("noteList");
+  list.replaceChildren();
+  getNotes().forEach(note=>{
+    const card=document.createElement("div");
+    card.className="panel";
+    const title=document.createElement("b");
+    title.textContent=note.title||"Untitled";
+    const body=document.createElement("p");
+    body.className="result";
+    body.textContent=note.body;
+    const del=document.createElement("button");
+    del.textContent="Delete";
+    del.addEventListener("click",()=>deleteNote(note.id));
+    card.append(title,body,del);
+    list.append(card);
+  });
+}
+
+renderNotes();
+</script>
+</body>
+</html>
